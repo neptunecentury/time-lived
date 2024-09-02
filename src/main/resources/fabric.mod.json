@@ -11,7 +11,7 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "com.neptunecentury.TimeLived"
+      "com.neptunecentury.timelived.TimeLived"
     ]
   },
   "mixins": [
