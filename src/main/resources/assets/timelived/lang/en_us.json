@@ -1,0 +1,10 @@
+{
+  "time-lived.text.congrats": "Congrats, you lived for %s day(s).",
+  "time-lived.text.try-again": "You lived for %s day(s). How about we try that again, shall we?",
+  "time-lived.text.try-harder": "You lived for %s day(s). Let's see if we can last a bit longer next time.",
+  "time-lived.text.maybe-next-time": "You lived for %s day(s). Uh... maybe next time will be better.",
+  "time-lived.text.time-travel": "Wait... did you travel back in time?",
+  "time-lived.text.new-record": "All right! New record! You surpassed your previous record of %s day(s)!",
+  "time-lived.text.query-player": "%s has lived for %s day(s).",
+  "time-lived.text.stats-not-found": "Player statistics not found."
+}

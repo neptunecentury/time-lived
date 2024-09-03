@@ -51,6 +51,7 @@ public class PlayerMixin {
         var playerDeathData = new PlayerDeathData();
         playerDeathData.timePlayerLastDied = playerDeathNbtData.getLong(TimeLived.TIME_PLAYER_LAST_DIED);
         playerDeathData.timePlayerJustDied = playerDeathNbtData.getLong(TimeLived.TIME_PLAYER_JUST_DIED);
+        playerDeathData.longestTimeLived = playerDeathNbtData.getLong(TimeLived.LONGEST_TIME_LIVED);
         // Update last time player died in the hashmap
         TimeLived.playerDeathDataHash.put(thisObject.getUuid(), playerDeathData);
     }
@@ -64,9 +65,11 @@ public class PlayerMixin {
             return;
         }
 
+        // Create compound to store our custom data
         var playerDeathNbtData = new NbtCompound();
         playerDeathNbtData.putLong(TimeLived.TIME_PLAYER_LAST_DIED, playerDeathData.timePlayerLastDied);
         playerDeathNbtData.putLong(TimeLived.TIME_PLAYER_JUST_DIED, playerDeathData.timePlayerJustDied);
+        playerDeathNbtData.putLong(TimeLived.LONGEST_TIME_LIVED, playerDeathData.longestTimeLived);
         // Put the player death data nbt compound into the custom data nbt compound.
         nbt.put(TimeLived.TIME_LIVED_PLAYER_DEATH_DATA, playerDeathNbtData);
 

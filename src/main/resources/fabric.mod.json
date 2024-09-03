@@ -2,12 +2,14 @@
   "schemaVersion": 1,
   "id": "time-lived",
   "version": "${version}",
-  "name": "time-lived",
+  "name": "Time Lived",
   "description": "",
-  "authors": [],
+  "authors": [
+    "neptunecentury"
+  ],
   "contact": {},
   "license": "MIT",
-  "icon": "assets/time-lived/icon.png",
+  "icon": "assets/timelived/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [
