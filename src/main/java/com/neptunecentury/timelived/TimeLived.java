@@ -58,6 +58,12 @@ public class TimeLived implements ModInitializer {
 
         // Register when player respawns
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            // If the player is alive, then do nothing. This can happen if the player respawns, but
+            // not as a result of death, live traveling to the overworld from the end.
+            if (alive){
+                return;
+            }
+
             // Once the player respawns, calculate how long the player live for by taking the last
             // time of death, how long they were dead for, and the current world time.
             // First, get the player death data from the hashmap if it exists
@@ -78,14 +84,15 @@ public class TimeLived implements ModInitializer {
             // Since the world is still ticking while the player is dead, update the last time of death
             // after the player has respawned.
             playerDeathData.timePlayerLastDied = world.getTimeOfDay();
-
+            // Get instance of config
+            var config = new ConfigManager();
             // Set some custom messages.
-            MutableText msg = getTimeLivedMessage(timeLived);
+            MutableText msg = getTimeLivedMessage(timeLived, config);
 
             // If days are negative... then the player must have traveled back in time!
             if (timeLived < 0) {
                 msg.append(" ");
-                msg.append(Text.translatable("time-lived.text.time-travel"));
+                msg.append(Text.literal(config.timeTravelMessage));
             }
 
             // Output the chat message to the player
@@ -100,7 +107,7 @@ public class TimeLived implements ModInitializer {
                 playerDeathData.longestTimeLived = timeLived;
 
                 // Output the chat message to the player
-                var newRecordMsg = Text.translatable("time-lived.text.new-record", formattedPreviousDaysLived);
+                var newRecordMsg = Text.literal(config.newRecordMessage.formatted(formattedPreviousDaysLived));
                 newPlayer.sendMessage(newRecordMsg.formatted(Formatting.AQUA));
             }
 
@@ -143,20 +150,21 @@ public class TimeLived implements ModInitializer {
      * Gets a message for the user
      *
      * @param timeLived The number of ticks the player lived
+     * @param config An instance if the config manager
      * @return Custom message
      */
-    private static @NotNull MutableText getTimeLivedMessage(long timeLived) {
+    private static @NotNull MutableText getTimeLivedMessage(long timeLived, ConfigManager config) {
         MutableText msg;
         var daysLived = getDaysLived(timeLived);
         var formattedDays = formatDaysLived(daysLived);
         if (daysLived > 1) {
-            msg = Text.translatable("time-lived.text.congrats", formattedDays);
+            msg = Text.literal(config.congratsMessage.formatted(formattedDays));
         } else if (daysLived > 0.5) {
-            msg = Text.translatable("time-lived.text.try-again", formattedDays);
+            msg = Text.literal(config.tryAgainMessage.formatted(formattedDays));
         } else if (daysLived > 0.1) {
-            msg = Text.translatable("time-lived.text.try-harder", formattedDays);
+            msg = Text.literal(config.tryHarderMessage.formatted(formattedDays));
         } else {
-            msg = Text.translatable("time-lived.text.maybe-next-time", formattedDays);
+            msg = Text.literal(config.maybeNextTimeMessage.formatted(formattedDays));
         }
         return msg;
     }

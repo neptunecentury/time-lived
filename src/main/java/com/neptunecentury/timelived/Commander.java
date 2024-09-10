@@ -21,23 +21,28 @@ public class Commander {
                     // Register query command
                     .then(CommandManager.literal("query")
                             // Add argument for a player entity
-                            .then(CommandManager.argument("player", EntityArgumentType.player())
+                            .then(CommandManager.argument("player", EntityArgumentType.players())
                                     .executes(context -> {
-                                                var player = EntityArgumentType.getPlayer(context, "player");
-                                                // Get the stats for the player
-                                                var playerDeathData = TimeLived.getDaysLivedForPlayer(player);
-                                                if (playerDeathData == null) {
-                                                    context.getSource().sendFeedback(() -> Text.translatable("time-lived.text.stats-not-found").formatted(Formatting.RED), false);
-                                                    return 1;
-                                                }
+                                                var config = new ConfigManager();
+                                                var players = EntityArgumentType.getPlayers(context, "player");
 
-                                                // Get the current world time
-                                                var currentTime = player.getServerWorld().getTimeOfDay();
-                                                var timeLived = currentTime - playerDeathData.timePlayerLastDied;
-                                                // Get the formatted time lived
-                                                var formattedDays = TimeLived.getFormattedDDaysLived(timeLived);
+                                                players.forEach((player) -> {
+                                                    var playerName = player.getEntityName();
+                                                    // Get the stats for the player
+                                                    var playerDeathData = TimeLived.getDaysLivedForPlayer(player);
+                                                    if (playerDeathData != null) {
+                                                        // Get the current world time
+                                                        var currentTime = player.getServerWorld().getTimeOfDay();
+                                                        var timeLived = currentTime - playerDeathData.timePlayerLastDied;
+                                                        // Get the formatted time lived
+                                                        var formattedDays = TimeLived.getFormattedDDaysLived(timeLived);
+                                                        var formattedRecordDays = TimeLived.getFormattedDDaysLived(playerDeathData.longestTimeLived);
 
-                                                context.getSource().sendFeedback(() -> Text.translatable("time-lived.text.query-player", player.getName(), formattedDays).formatted(Formatting.GREEN), false);
+                                                        context.getSource().sendFeedback(() -> Text.literal(config.queryPlayerMessage.formatted(playerName, formattedDays, formattedRecordDays)).formatted(Formatting.GREEN), false);
+                                                    } else {
+                                                        context.getSource().sendFeedback(() -> Text.literal(config.statsNotFoundMessage.formatted(playerName)).formatted(Formatting.RED), false);
+                                                    }
+                                                });
                                                 return 1;
                                             }
                                     )
