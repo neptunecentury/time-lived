@@ -9,7 +9,7 @@
   ],
   "contact": {},
   "license": "MIT",
-  "icon": "assets/timelived/icon.png",
+  "icon": "assets/timelived/logo.png",
   "environment": "*",
   "entrypoints": {
     "main": [
