@@ -1,6 +1,7 @@
 package com.neptunecentury.timelived;
 
 public class ConfigManager {
+    public String wowMessage = "Wow! You lived for %s day(s). That is quite an accomplishment!";
     public String congratsMessage = "Congrats, you lived for %s day(s).";
     public String tryAgainMessage = "You lived for %s day(s). How about we try that again, shall we?";
     public String tryHarderMessage = "You lived for %s day(s). Let's see if we can last a bit longer next time.";

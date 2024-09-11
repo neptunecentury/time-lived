@@ -47,8 +47,7 @@ public class TimeLived implements ModInitializer {
             // Check if the player death data needs to be cleared from the hash. This may be needed
             // if the player joins a new world, and no nbt data is loaded into the hash, resulting
             // in left over data from the previous world, which we don't want.
-            if (playerDeathData != null && playerDeathData.needsHashDataCleared)
-            {
+            if (playerDeathData != null && playerDeathData.needsHashDataCleared) {
                 playerDeathData = null;
             }
 
@@ -179,7 +178,9 @@ public class TimeLived implements ModInitializer {
         MutableText msg;
         var daysLived = getDaysLived(timeLived);
         var formattedDays = formatDaysLived(daysLived);
-        if (daysLived > 1) {
+        if (daysLived > 100) {
+            msg = Text.literal(config.wowMessage.formatted(formattedDays));
+        } else if (daysLived > 1) {
             msg = Text.literal(config.congratsMessage.formatted(formattedDays));
         } else if (daysLived > 0.5) {
             msg = Text.literal(config.tryAgainMessage.formatted(formattedDays));
