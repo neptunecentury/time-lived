@@ -10,6 +10,8 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.text.DecimalFormat;
 import java.util.HashMap;
@@ -25,6 +27,8 @@ public class TimeLived implements ModInitializer {
     public static final String TIME_PLAYER_LAST_DIED = "TimePlayerLastDied";
     public static final String TIME_PLAYER_JUST_DIED = "TimePlayerJustDied";
     public static final String LONGEST_TIME_LIVED = "LongestTimeLived";
+    // Logger
+    public static final Logger logger = LoggerFactory.getLogger(MOD_ID);
 
     @Override
     public void onInitialize() {
@@ -37,7 +41,18 @@ public class TimeLived implements ModInitializer {
             // A player has joined the server.
             // Set the server instance
             _server = server;
+
+            // Get the player death data from the hash
             var playerDeathData = TimeLived.playerDeathDataHash.getOrDefault(handler.player.getUuid(), null);
+            // Check if the player death data needs to be cleared from the hash. This may be needed
+            // if the player joins a new world, and no nbt data is loaded into the hash, resulting
+            // in left over data from the previous world, which we don't want.
+            if (playerDeathData != null && playerDeathData.needsHashDataCleared)
+            {
+                playerDeathData = null;
+            }
+
+            // If no data, create new instance
             if (playerDeathData == null) {
                 playerDeathData = new PlayerDeathData();
                 // Get the time of day the player joined if there is no death data because this
@@ -48,19 +63,26 @@ public class TimeLived implements ModInitializer {
             }
         });
 
-        //ServerPlayConnectionEvents.DISCONNECT.register(((handler, server) -> {
-        // When the player leaves, remove the data from the hashmap.
-        //playerDeathDataHash.remove(handler.player.getUuid());
-        //}));
+        ServerPlayConnectionEvents.DISCONNECT.register(((handler, server) -> {
+            // When the player leaves, mark the data for clearing. This will get cleared
+            // if the player loads another world and the nbt data is read into the hash table,
+            // OR if the player joins a new world and the nbt data is not cleared and the
+            // needsHashDataCleared flag is set.
+            var playerDeathData = playerDeathDataHash.get(handler.player.getUuid());
+            if (playerDeathData != null) {
+                playerDeathData.needsHashDataCleared = true;
+            }
+        }));
 
         //ServerPlayerEvents.COPY_FROM.register(((oldPlayer, newPlayer, alive) -> {
         //}));
+
 
         // Register when player respawns
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             // If the player is alive, then do nothing. This can happen if the player respawns, but
             // not as a result of death, live traveling to the overworld from the end.
-            if (alive){
+            if (alive) {
                 return;
             }
 
@@ -150,7 +172,7 @@ public class TimeLived implements ModInitializer {
      * Gets a message for the user
      *
      * @param timeLived The number of ticks the player lived
-     * @param config An instance if the config manager
+     * @param config    An instance if the config manager
      * @return Custom message
      */
     private static @NotNull MutableText getTimeLivedMessage(long timeLived, ConfigManager config) {

@@ -13,4 +13,9 @@ public class PlayerDeathData {
      * The longest time the player lived
      */
     public long longestTimeLived;
+
+    /**
+     * Indicates if the player data in the hash needs to be cleared
+     */
+    public boolean needsHashDataCleared;
 }
