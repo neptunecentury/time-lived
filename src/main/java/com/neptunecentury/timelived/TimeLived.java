@@ -9,8 +9,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import org.apache.http.client.params.ClientPNames;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,8 +18,7 @@ import java.util.*;
 public class TimeLived implements ModInitializer {
     public static final String MOD_ID = "time-lived";
     public static final HashMap<UUID, PlayerDeathData> playerDeathDataHash = new HashMap<>();
-    //private static final String keyId = "time_since_last_death";
-    //public static final Identifier TIME_SINCE_LAST_DEATH = new Identifier("time-lived", keyId);
+
     public static MinecraftServer _server;
     public static final String TIME_LIVED_PLAYER_DEATH_DATA = "TimeLivedPlayerDeathData";
     public static final String TIME_PLAYER_LAST_DIED = "TimePlayerLastDied";

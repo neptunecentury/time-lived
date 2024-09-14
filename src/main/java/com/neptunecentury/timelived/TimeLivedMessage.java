@@ -10,9 +10,6 @@ public class TimeLivedMessage {
      */
     public String message;
 
-    public TimeLivedMessage() {
-    }
-
     public TimeLivedMessage(double minDaysLived, String message) {
         this.minDaysLived = minDaysLived;
         this.message = message;
