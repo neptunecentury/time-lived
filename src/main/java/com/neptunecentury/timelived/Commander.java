@@ -6,6 +6,8 @@ import net.minecraft.server.command.CommandManager;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
+import java.sql.Time;
+
 public class Commander {
 
     /**
@@ -13,7 +15,7 @@ public class Commander {
      *
      * @param commandName The root command name
      */
-    public static void registerCommands(String commandName) {
+    public static void registerCommands(String commandName, Config cfg) {
 
         // Register the command tree
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -23,7 +25,6 @@ public class Commander {
                             // Add argument for a player entity
                             .then(CommandManager.argument("player", EntityArgumentType.players())
                                     .executes(context -> {
-                                                var config = new ConfigManager();
                                                 var players = EntityArgumentType.getPlayers(context, "player");
 
                                                 players.forEach((player) -> {
@@ -38,9 +39,9 @@ public class Commander {
                                                         var formattedDays = TimeLived.getFormattedDDaysLived(timeLived);
                                                         var formattedRecordDays = TimeLived.getFormattedDDaysLived(playerDeathData.longestTimeLived);
 
-                                                        context.getSource().sendFeedback(() -> Text.literal(config.queryPlayerMessage.formatted(playerName, formattedDays, formattedRecordDays)).formatted(Formatting.GREEN), false);
+                                                        context.getSource().sendFeedback(() -> Text.literal(cfg.queryPlayerMessage.formatted(playerName, formattedDays, formattedRecordDays)).formatted(Formatting.GREEN), false);
                                                     } else {
-                                                        context.getSource().sendFeedback(() -> Text.literal(config.statsNotFoundMessage.formatted(playerName)).formatted(Formatting.RED), false);
+                                                        context.getSource().sendFeedback(() -> Text.literal(cfg.statsNotFoundMessage.formatted(playerName)).formatted(Formatting.RED), false);
                                                     }
                                                 });
                                                 return 1;

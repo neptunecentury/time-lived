@@ -9,13 +9,13 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import org.apache.http.client.params.ClientPNames;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.DecimalFormat;
-import java.util.HashMap;
-import java.util.UUID;
+import java.util.*;
 
 public class TimeLived implements ModInitializer {
     public static final String MOD_ID = "time-lived";
@@ -30,11 +30,19 @@ public class TimeLived implements ModInitializer {
     // Logger
     public static final Logger logger = LoggerFactory.getLogger(MOD_ID);
 
+    private Config _cfg;
+
     @Override
     public void onInitialize() {
 
+        // Load the config file
+        _cfg = new ConfigManager<Config>(MOD_ID, logger).load(Config.class);
+        // Order and reverse the time lived messages
+        _cfg.timeLivedMessages.sort(Comparator.comparingDouble((TimeLivedMessage tlm) -> tlm.minDaysLived));
+        Collections.reverse(_cfg.timeLivedMessages);
+
         // Register the commands
-        Commander.registerCommands("timelived");
+        Commander.registerCommands("timelived", _cfg);
 
         // Register event when player joins server
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
@@ -73,10 +81,6 @@ public class TimeLived implements ModInitializer {
             }
         }));
 
-        //ServerPlayerEvents.COPY_FROM.register(((oldPlayer, newPlayer, alive) -> {
-        //}));
-
-
         // Register when player respawns
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             // If the player is alive, then do nothing. This can happen if the player respawns, but
@@ -105,19 +109,19 @@ public class TimeLived implements ModInitializer {
             // Since the world is still ticking while the player is dead, update the last time of death
             // after the player has respawned.
             playerDeathData.timePlayerLastDied = world.getTimeOfDay();
-            // Get instance of config
-            var config = new ConfigManager();
+
             // Set some custom messages.
-            MutableText msg = getTimeLivedMessage(timeLived, config);
+            MutableText msg = getTimeLivedMessage(timeLived);
+            if (msg != null) {
+                // If days are negative... then the player must have traveled back in time!
+                if (timeLived < 0) {
+                    msg.append(" ");
+                    msg.append(Text.literal(_cfg.timeTravelMessage));
+                }
 
-            // If days are negative... then the player must have traveled back in time!
-            if (timeLived < 0) {
-                msg.append(" ");
-                msg.append(Text.literal(config.timeTravelMessage));
+                // Output the chat message to the player
+                newPlayer.sendMessage(msg.formatted(Formatting.GREEN));
             }
-
-            // Output the chat message to the player
-            newPlayer.sendMessage(msg.formatted(Formatting.GREEN));
 
             if (timeLived > playerDeathData.longestTimeLived) {
                 // Get old record
@@ -128,7 +132,7 @@ public class TimeLived implements ModInitializer {
                 playerDeathData.longestTimeLived = timeLived;
 
                 // Output the chat message to the player
-                var newRecordMsg = Text.literal(config.newRecordMessage.formatted(formattedPreviousDaysLived));
+                var newRecordMsg = Text.literal(_cfg.newRecordMessage.formatted(formattedPreviousDaysLived));
                 newPlayer.sendMessage(newRecordMsg.formatted(Formatting.AQUA));
             }
 
@@ -171,24 +175,23 @@ public class TimeLived implements ModInitializer {
      * Gets a message for the user
      *
      * @param timeLived The number of ticks the player lived
-     * @param config    An instance if the config manager
      * @return Custom message
      */
-    private static @NotNull MutableText getTimeLivedMessage(long timeLived, ConfigManager config) {
-        MutableText msg;
+    private MutableText getTimeLivedMessage(long timeLived) {
+        MutableText msg = null;
         var daysLived = getDaysLived(timeLived);
         var formattedDays = formatDaysLived(daysLived);
-        if (daysLived > 100) {
-            msg = Text.literal(config.wowMessage.formatted(formattedDays));
-        } else if (daysLived > 1) {
-            msg = Text.literal(config.congratsMessage.formatted(formattedDays));
-        } else if (daysLived > 0.5) {
-            msg = Text.literal(config.tryAgainMessage.formatted(formattedDays));
-        } else if (daysLived > 0.1) {
-            msg = Text.literal(config.tryHarderMessage.formatted(formattedDays));
-        } else {
-            msg = Text.literal(config.maybeNextTimeMessage.formatted(formattedDays));
+
+        // Check the days lived and get the appropriate message
+        for (var x = 0; x < _cfg.timeLivedMessages.size(); x++) {
+            var tlm = _cfg.timeLivedMessages.get(x);
+            // Check if message starting with the largest first.
+            if (daysLived >= tlm.minDaysLived) {
+                msg = Text.literal(tlm.message.formatted(formattedDays));
+                break;
+            }
         }
+
         return msg;
     }
 
@@ -201,4 +204,5 @@ public class TimeLived implements ModInitializer {
     public static PlayerDeathData getDaysLivedForPlayer(ServerPlayerEntity player) {
         return TimeLived.playerDeathDataHash.get(player.getUuid());
     }
+
 }
