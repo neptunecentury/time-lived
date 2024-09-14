@@ -19,7 +19,7 @@ public class Config implements IConfig {
 
     @Override
     public void setDefaults() {
-        this.timeLivedMessages = new ArrayList<TimeLivedMessage>();
+        this.timeLivedMessages = new ArrayList<>();
         this.timeLivedMessages.addAll(List.of(new TimeLivedMessage[]{
                 new TimeLivedMessage(0, "You lived for %s day(s). Uh... maybe next time will be better."),
                 new TimeLivedMessage(0.1, "You lived for %s day(s). Let's see if we can last a bit longer next time."),

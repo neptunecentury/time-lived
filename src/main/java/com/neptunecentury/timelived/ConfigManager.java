@@ -30,15 +30,6 @@ public class ConfigManager<T extends IConfig> {
     }
 
     /**
-     * Gets the configuration
-     *
-     * @return An object containing the configuration
-     */
-    public T getConfig() {
-        return _cfg;
-    }
-
-    /**
      * Loads the configuration file
      *
      * @param clazz The class object for the class type to load
