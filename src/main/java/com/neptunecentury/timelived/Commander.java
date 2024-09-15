@@ -25,7 +25,6 @@ public class Commander {
                                             var players = EntityArgumentType.getPlayers(context, "player");
 
                                             players.forEach((player) -> {
-                                                var playerName = player.getEntityName();
                                                 // Get the stats for the player
                                                 var playerDeathData = TimeLived.getDaysLivedForPlayer(player);
                                                 if (playerDeathData != null) {
