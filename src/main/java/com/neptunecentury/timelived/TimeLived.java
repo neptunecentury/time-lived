@@ -9,6 +9,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,9 @@ public class TimeLived implements ModInitializer {
     public static final Logger logger = LoggerFactory.getLogger(MOD_ID);
 
     private Config _cfg;
+    private static final String DAYS_LIVED_VARIABLE = "{daysLived}";
+    private static final String PREVIOUS_DAYS_LIVED_VARIABLE = "{previousDaysLived}";
+    private static final String PLAYER_NAME_VARIABLE = "{playerName}";
 
     @Override
     public void onInitialize() {
@@ -102,35 +106,36 @@ public class TimeLived implements ModInitializer {
 
             // Calculate how long the player lived.
             var timeLived = playerDeathData.timePlayerJustDied - playerDeathData.timePlayerLastDied;
+            // Get how many days the player lived
+            var daysLived = getDaysLived(timeLived);
+            var previousDaysLived = getDaysLived(playerDeathData.longestTimeLived);
 
             // Since the world is still ticking while the player is dead, update the last time of death
             // after the player has respawned.
             playerDeathData.timePlayerLastDied = world.getTimeOfDay();
 
-            // Set some custom messages.
-            MutableText msg = getTimeLivedMessage(timeLived);
-            if (msg != null) {
-                // If days are negative... then the player must have traveled back in time!
-                if (timeLived < 0) {
-                    msg.append(" ");
-                    msg.append(Text.literal(_cfg.timeTravelMessage));
-                }
-
-                // Output the chat message to the player
-                newPlayer.sendMessage(msg.formatted(Formatting.GREEN));
+            // Get message to send to the player
+            var msg = getTimeLivedMessage(daysLived, previousDaysLived, newPlayer);
+            // If days are negative... then the player must have traveled back in time!
+            if (_cfg.timeTravelMessage != null && timeLived < 0) {
+                msg.append(" ");
+                var timeTravelMsg = _cfg.timeTravelMessage;
+                timeTravelMsg = replaceVariable(timeTravelMsg, daysLived, previousDaysLived, newPlayer);
+                msg.append(Text.literal(timeTravelMsg));
             }
 
-            if (timeLived > playerDeathData.longestTimeLived) {
-                // Get old record
-                var previousDaysLived = getDaysLived(playerDeathData.longestTimeLived);
-                var formattedPreviousDaysLived = formatDaysLived(previousDaysLived);
+            // Output the chat message to the player
+            newPlayer.sendMessage(msg.formatted(Formatting.GREEN));
 
+            // Check if we should display new record message
+            if (_cfg.newRecordMessage != null && timeLived > playerDeathData.longestTimeLived) {
                 // Set new record.
                 playerDeathData.longestTimeLived = timeLived;
 
                 // Output the chat message to the player
-                var newRecordMsg = Text.literal(_cfg.newRecordMessage.formatted(formattedPreviousDaysLived));
-                newPlayer.sendMessage(newRecordMsg.formatted(Formatting.AQUA));
+                var newRecordMsg = _cfg.newRecordMessage;
+                newRecordMsg = replaceVariable(newRecordMsg, daysLived, previousDaysLived, newPlayer);
+                newPlayer.sendMessage(Text.literal(newRecordMsg).formatted(Formatting.AQUA));
             }
 
         });
@@ -158,38 +163,30 @@ public class TimeLived implements ModInitializer {
     }
 
     /**
-     * Formats the time lived to days
-     *
-     * @param timeLived The number of ticks the player lived
-     * @return The formatted days the player lived
-     */
-    public static String getFormattedDDaysLived(long timeLived) {
-        var daysLived = getDaysLived(timeLived);
-        return formatDaysLived(daysLived);
-    }
-
-    /**
      * Gets a message for the user
      *
-     * @param timeLived The number of ticks the player lived
+     * @param daysLived         The number of days the player lived
+     * @param previousDaysLived The previous number of days the player lived
+     * @param player            The player entity
      * @return Custom message
      */
-    private MutableText getTimeLivedMessage(long timeLived) {
-        MutableText msg = null;
-        var daysLived = getDaysLived(timeLived);
-        var formattedDays = formatDaysLived(daysLived);
-
+    @NotNull
+    private MutableText getTimeLivedMessage(double daysLived, double previousDaysLived, ServerPlayerEntity player) {
+        String msg = _cfg.defaultTimeLivedMessage;
         // Check the days lived and get the appropriate message
         for (var x = 0; x < _cfg.timeLivedMessages.size(); x++) {
             var tlm = _cfg.timeLivedMessages.get(x);
             // Check if message starting with the largest first.
             if (daysLived >= tlm.minDaysLived) {
-                msg = Text.literal(tlm.message.formatted(formattedDays));
+                msg = tlm.message;
                 break;
             }
         }
 
-        return msg;
+        // Replace variables with data
+        msg = replaceVariable(msg, daysLived, previousDaysLived, player);
+
+        return Text.literal(msg);
     }
 
     /**
@@ -200,6 +197,27 @@ public class TimeLived implements ModInitializer {
      */
     public static PlayerDeathData getDaysLivedForPlayer(ServerPlayerEntity player) {
         return TimeLived.playerDeathDataHash.get(player.getUuid());
+    }
+
+    /**
+     * Replaces the variable with formatted data
+     *
+     * @param msg               The message to search
+     * @param daysLived         The number of days the player lived
+     * @param previousDaysLived The number of previous days the player lived
+     * @param player            The player
+     * @return The formatted string
+     */
+    public static String replaceVariable(@NotNull String msg, double daysLived, double previousDaysLived, ServerPlayerEntity player) {
+        // Get formatted days lived and previous days lived (record)
+        var formattedDays = formatDaysLived(daysLived);
+        var formattedPreviousDays = formatDaysLived(previousDaysLived);
+        // Replace variables with data
+        msg = msg.replace(DAYS_LIVED_VARIABLE, formattedDays);
+        msg = msg.replace(PREVIOUS_DAYS_LIVED_VARIABLE, formattedPreviousDays);
+        msg = msg.replace(PLAYER_NAME_VARIABLE, player.getEntityName());
+
+        return msg;
     }
 
 }

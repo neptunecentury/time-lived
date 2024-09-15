@@ -33,12 +33,20 @@ public class Commander {
                                                     var currentTime = player.getServerWorld().getTimeOfDay();
                                                     var timeLived = currentTime - playerDeathData.timePlayerLastDied;
                                                     // Get the formatted time lived
-                                                    var formattedDays = TimeLived.getFormattedDDaysLived(timeLived);
-                                                    var formattedRecordDays = TimeLived.getFormattedDDaysLived(playerDeathData.longestTimeLived);
+                                                    var daysLived = TimeLived.getDaysLived(timeLived);
+                                                    var previousDaysLived = TimeLived.getDaysLived(playerDeathData.longestTimeLived);
 
-                                                    context.getSource().sendFeedback(() -> Text.literal(cfg.queryPlayerMessage.formatted(playerName, formattedDays, formattedRecordDays)).formatted(Formatting.GREEN), false);
+                                                    context.getSource().sendFeedback(() -> {
+                                                        String msg = cfg.queryPlayerMessage;
+                                                        msg = TimeLived.replaceVariable(msg, daysLived, previousDaysLived, player);
+                                                        return Text.literal(msg).formatted(Formatting.GREEN);
+                                                    }, false);
                                                 } else {
-                                                    context.getSource().sendFeedback(() -> Text.literal(cfg.statsNotFoundMessage.formatted(playerName)).formatted(Formatting.RED), false);
+                                                    context.getSource().sendFeedback(() -> {
+                                                        String msg = cfg.statsNotFoundMessage;
+                                                        msg = TimeLived.replaceVariable(msg, 0, 0, player);
+                                                        return Text.literal(msg).formatted(Formatting.RED);
+                                                    }, false);
                                                 }
                                             });
                                             return 1;
