@@ -45,6 +45,7 @@ public class ConfigManager<T extends IConfig> {
             var jsonString = Files.newBufferedReader(configFile);
             // Deserialize
             _cfg = gson.fromJson(jsonString, clazz);
+            _cfg.prepareData();
 
         } catch (NoSuchFileException ex) {
             _logger.warn("[{}] Could not load config: {}: Using default values.", _name, ex.getMessage());

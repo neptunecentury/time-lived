@@ -25,6 +25,7 @@ public class Config implements IConfig {
     public String queryPlayerMessage = "{playerName} has lived for {daysLived} day(s). Previous record is {previousDaysLived} day(s).";
     public String statsNotFoundMessage = "Statistics not found for {playerName}.";
     public String timeTravelMessage = "Wait... did you travel back in time?";
+    public boolean enableMessagesToOthers = true;
 
     public Config() {
 
@@ -58,9 +59,17 @@ public class Config implements IConfig {
 
     @Override
     public void prepareData() {
+        if (this.timeLivedMessages == null){
+            this.timeLivedMessages = new ArrayList<>();
+        }
+
         // Order and reverse the time lived messages
         this.timeLivedMessages.sort(Comparator.comparingDouble((TimeLivedMessage tlm) -> tlm.minDaysLived));
         Collections.reverse(this.timeLivedMessages);
+
+        if (this.timeLivedMessagesToOthers == null){
+            this.timeLivedMessagesToOthers = new ArrayList<>();
+        }
 
         // Order and reverse the time lived messages to others
         this.timeLivedMessagesToOthers.sort(Comparator.comparingDouble((TimeLivedMessage tlm) -> tlm.minDaysLived));

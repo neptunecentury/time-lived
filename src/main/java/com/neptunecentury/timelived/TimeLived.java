@@ -111,7 +111,7 @@ public class TimeLived implements ModInitializer {
             var msg = getTimeLivedMessage(_cfg.timeLivedMessages, daysLived, previousDaysLived, newPlayer);
             if(msg != null) {
                 // If days are negative... then the player must have traveled back in time!
-                if (_cfg.timeTravelMessage != null && timeLived < 0) {
+                if (_cfg.timeTravelMessage != null && daysLived < 0) {
                     msg.append(" ");
                     var timeTravelMsg = _cfg.timeTravelMessage;
                     timeTravelMsg = replaceVariable(timeTravelMsg, daysLived, previousDaysLived, newPlayer);
@@ -122,18 +122,50 @@ public class TimeLived implements ModInitializer {
                 newPlayer.sendMessage(msg.formatted(Formatting.GREEN));
             }
 
-            // Check if we should display new record message
-            if (_cfg.newRecordMessage != null && timeLived > playerDeathData.longestTimeLived) {
-                // Set new record.
-                playerDeathData.longestTimeLived = timeLived;
-
-                // Output the chat message to the player
-                var newRecordMsg = _cfg.newRecordMessage;
-                newRecordMsg = replaceVariable(newRecordMsg, daysLived, previousDaysLived, newPlayer);
-                newPlayer.sendMessage(Text.literal(newRecordMsg).formatted(Formatting.AQUA));
+            // Check if the player reached a new record and send a message if they did.
+            if (didPlayerBeatPersonalRecord(timeLived, playerDeathData)){
+                sendNewRecordMessage(newPlayer, daysLived, previousDaysLived);
             }
 
         });
+    }
+
+    public boolean didPlayerBeatPersonalRecord(long timeLived, PlayerDeathData playerDeathData){
+        var beatRecord = false;
+        // Check if we should display new record message
+        if (timeLived > playerDeathData.longestTimeLived) {
+            // Set new record.
+            playerDeathData.longestTimeLived = timeLived;
+            beatRecord = true;
+        }
+
+        return beatRecord;
+    }
+
+    private void sendNewRecordMessage(ServerPlayerEntity newPlayer, double daysLived, double previousDaysLived) {
+        // Output the chat message to the player
+        if (_cfg.newRecordMessage != null){
+            var msg = replaceVariable(_cfg.newRecordMessage, daysLived, previousDaysLived, newPlayer);
+            newPlayer.sendMessage(Text.literal(msg).formatted(Formatting.AQUA));
+        }
+
+        // Check if we should send message to others
+        if (_cfg.enableMessagesToOthers && _cfg.newRecordMessageToOthers != null){
+            // Get the players on the server
+            var server = newPlayer.getServer();
+            if (server != null) {
+                var playerManager = server.getPlayerManager();
+                var players = playerManager.getPlayerList();
+                // Loop through each player and send a message, alerting everyone of the dead player's death.
+                for (var player : players) {
+                    if (player != newPlayer) {
+                        // Send player a message
+                        var msg = replaceVariable(_cfg.newRecordMessageToOthers, daysLived, previousDaysLived, player);
+                        player.sendMessage(Text.literal(msg).formatted(Formatting.AQUA));
+                    }
+                }
+            }
+        }
     }
 
     /**

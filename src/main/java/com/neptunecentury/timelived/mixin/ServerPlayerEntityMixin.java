@@ -5,7 +5,6 @@ import com.neptunecentury.timelived.TimeLived;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerPlayerEntity.class)
-public class PlayerMixin {
+public class ServerPlayerEntityMixin {
 
     @Inject(at = @At("HEAD"), method = "onDeath")
     private void mixinOnDeath(DamageSource damageSource, CallbackInfo ci) {
@@ -27,7 +26,7 @@ public class PlayerMixin {
         }
 
         // Get the player object
-        ServerPlayerEntity thisObject = (ServerPlayerEntity) (Object) this;
+        var thisPlayer = (ServerPlayerEntity) (Object) this;
 
         // Get the time the player died
         var timePlayerJustDied = world.getTimeOfDay();
@@ -35,7 +34,7 @@ public class PlayerMixin {
         // Get the existing player death data. If it does not exist in the hashmap, create a new instance. Since
         // this could be the first time the player joined the world, set their last death time to the time
         // they joined so their time lived isn't skewed.
-        var playerDeathData = TimeLived.playerDeathDataHash.getOrDefault(thisObject.getUuid(), null);
+        var playerDeathData = TimeLived.playerDeathDataHash.getOrDefault(thisPlayer.getUuid(), null);
         if (playerDeathData == null) {
             return;
         }
@@ -47,22 +46,25 @@ public class PlayerMixin {
         // Get how many days the player lived
         var daysLived = TimeLived.getDaysLived(timeLived);
         var previousDaysLived = TimeLived.getDaysLived(playerDeathData.longestTimeLived);
-// Get loaded config
+        // Get loaded config
         var cfg = TimeLived.get_cfg();
-        // Broadcast messages to other players on the server
-        var playerManager = server.getPlayerManager();
-        if (playerManager != null) {
 
-            var players = playerManager.getPlayerList();
-            // Loop through each player and send a message, alerting everyone of the dead player's death.
-            for (var player : players) {
-                if (player != thisObject) {
-                    // Send player a message
-                    var msg = TimeLived.getTimeLivedMessage(cfg.timeLivedMessagesToOthers, daysLived, previousDaysLived, thisObject);
-                    if (msg != null) {
+        // Broadcast messages to other players on the server
+        if (cfg.enableMessagesToOthers && !cfg.timeLivedMessagesToOthers.isEmpty()) {
+            // Get message to send
+            var msg = TimeLived.getTimeLivedMessage(cfg.timeLivedMessagesToOthers, daysLived, previousDaysLived, thisPlayer);
+            if (msg != null) {
+                // Get the players on the server
+                var playerManager = server.getPlayerManager();
+                var players = playerManager.getPlayerList();
+                // Loop through each player and send a message, alerting everyone of the dead player's death.
+                for (var player : players) {
+                    if (player != thisPlayer) {
+                        // Send player a message
                         player.sendMessage(msg.formatted(Formatting.GREEN));
                     }
                 }
+
             }
         }
 
