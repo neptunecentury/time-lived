@@ -5,6 +5,8 @@ import com.neptunecentury.timelived.TimeLived;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -40,6 +42,29 @@ public class PlayerMixin {
 
         // Update last time player died in the hashmap
         playerDeathData.timePlayerJustDied = timePlayerJustDied;
+        // Calculate how long the player lived.
+        var timeLived = playerDeathData.timePlayerJustDied - playerDeathData.timePlayerLastDied;
+        // Get how many days the player lived
+        var daysLived = TimeLived.getDaysLived(timeLived);
+        var previousDaysLived = TimeLived.getDaysLived(playerDeathData.longestTimeLived);
+// Get loaded config
+        var cfg = TimeLived.get_cfg();
+        // Broadcast messages to other players on the server
+        var playerManager = server.getPlayerManager();
+        if (playerManager != null) {
+
+            var players = playerManager.getPlayerList();
+            // Loop through each player and send a message, alerting everyone of the dead player's death.
+            for (var player : players) {
+                if (player != thisObject) {
+                    // Send player a message
+                    var msg = TimeLived.getTimeLivedMessage(cfg.timeLivedMessagesToOthers, daysLived, previousDaysLived, thisObject);
+                    if (msg != null) {
+                        player.sendMessage(msg.formatted(Formatting.GREEN));
+                    }
+                }
+            }
+        }
 
     }
 

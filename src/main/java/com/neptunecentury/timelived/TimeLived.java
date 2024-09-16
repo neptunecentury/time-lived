@@ -28,20 +28,13 @@ public class TimeLived implements ModInitializer {
     // Logger
     public static final Logger logger = LoggerFactory.getLogger(MOD_ID);
 
-    private Config _cfg;
+    private static final Config _cfg = new ConfigManager<Config>(MOD_ID, logger).load(Config.class);
     private static final String DAYS_LIVED_VARIABLE = "{daysLived}";
     private static final String PREVIOUS_DAYS_LIVED_VARIABLE = "{previousDaysLived}";
     private static final String PLAYER_NAME_VARIABLE = "{playerName}";
 
     @Override
     public void onInitialize() {
-
-        // Load the config file
-        _cfg = new ConfigManager<Config>(MOD_ID, logger).load(Config.class);
-        // Order and reverse the time lived messages
-        _cfg.timeLivedMessages.sort(Comparator.comparingDouble((TimeLivedMessage tlm) -> tlm.minDaysLived));
-        Collections.reverse(_cfg.timeLivedMessages);
-
         // Register the commands
         Commander.registerCommands("timelived", _cfg);
 
@@ -115,17 +108,19 @@ public class TimeLived implements ModInitializer {
             playerDeathData.timePlayerLastDied = world.getTimeOfDay();
 
             // Get message to send to the player
-            var msg = getTimeLivedMessage(daysLived, previousDaysLived, newPlayer);
-            // If days are negative... then the player must have traveled back in time!
-            if (_cfg.timeTravelMessage != null && timeLived < 0) {
-                msg.append(" ");
-                var timeTravelMsg = _cfg.timeTravelMessage;
-                timeTravelMsg = replaceVariable(timeTravelMsg, daysLived, previousDaysLived, newPlayer);
-                msg.append(Text.literal(timeTravelMsg));
-            }
+            var msg = getTimeLivedMessage(_cfg.timeLivedMessages, daysLived, previousDaysLived, newPlayer);
+            if(msg != null) {
+                // If days are negative... then the player must have traveled back in time!
+                if (_cfg.timeTravelMessage != null && timeLived < 0) {
+                    msg.append(" ");
+                    var timeTravelMsg = _cfg.timeTravelMessage;
+                    timeTravelMsg = replaceVariable(timeTravelMsg, daysLived, previousDaysLived, newPlayer);
+                    msg.append(Text.literal(timeTravelMsg));
+                }
 
-            // Output the chat message to the player
-            newPlayer.sendMessage(msg.formatted(Formatting.GREEN));
+                // Output the chat message to the player
+                newPlayer.sendMessage(msg.formatted(Formatting.GREEN));
+            }
 
             // Check if we should display new record message
             if (_cfg.newRecordMessage != null && timeLived > playerDeathData.longestTimeLived) {
@@ -165,17 +160,16 @@ public class TimeLived implements ModInitializer {
     /**
      * Gets a message for the user
      *
+     * @param messages          An array list of messages to choose from
      * @param daysLived         The number of days the player lived
      * @param previousDaysLived The previous number of days the player lived
      * @param player            The player entity
      * @return Custom message
      */
-    @NotNull
-    private MutableText getTimeLivedMessage(double daysLived, double previousDaysLived, ServerPlayerEntity player) {
-        String msg = _cfg.defaultTimeLivedMessage;
+    public static MutableText getTimeLivedMessage(@NotNull ArrayList<TimeLivedMessage> messages, double daysLived, double previousDaysLived, ServerPlayerEntity player) {
+        String msg = null;
         // Check the days lived and get the appropriate message
-        for (var x = 0; x < _cfg.timeLivedMessages.size(); x++) {
-            var tlm = _cfg.timeLivedMessages.get(x);
+        for (TimeLivedMessage tlm : messages) {
             // Check if message starting with the largest first.
             if (daysLived >= tlm.minDaysLived) {
                 msg = tlm.message;
@@ -183,10 +177,19 @@ public class TimeLived implements ModInitializer {
             }
         }
 
-        // Replace variables with data
-        msg = replaceVariable(msg, daysLived, previousDaysLived, player);
+        // Choose first message if we didn't find a valid one.
+        if (msg == null && !messages.isEmpty()){
+            msg = messages.get(0).message;
+        }
 
-        return Text.literal(msg);
+        if (msg != null) {
+            // Replace variables with data
+            msg = replaceVariable(msg, daysLived, previousDaysLived, player);
+
+            return Text.literal(msg);
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -220,4 +223,8 @@ public class TimeLived implements ModInitializer {
         return msg;
     }
 
+
+    public static Config get_cfg() {
+        return _cfg;
+    }
 }
