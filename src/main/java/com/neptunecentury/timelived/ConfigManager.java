@@ -45,14 +45,17 @@ public class ConfigManager<T extends IConfig> {
             var jsonString = Files.newBufferedReader(configFile);
             // Deserialize
             _cfg = gson.fromJson(jsonString, clazz);
-            _cfg.prepareData();
+            // Set defaults
+            if (_cfg.setDefaults()) {
+                save();
+            }
 
         } catch (NoSuchFileException ex) {
             _logger.warn("[{}] Could not load config: {}: Using default values.", _name, ex.getMessage());
             // Create defaults
             try {
                 _cfg = clazz.getDeclaredConstructor().newInstance();
-                // Write defaults
+                // Set defaults
                 _cfg.setDefaults();
                 // Save file
                 save();
