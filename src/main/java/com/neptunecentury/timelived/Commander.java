@@ -13,42 +13,46 @@ public class Commander {
      *
      * @param commandName The root command name
      */
-    public static void registerCommands(String commandName) {
+    public static void registerCommands(String commandName, Config cfg) {
 
         // Register the command tree
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(CommandManager.literal(commandName)
-                    // Register query command
-                    .then(CommandManager.literal("query")
-                            // Add argument for a player entity
-                            .then(CommandManager.argument("player", EntityArgumentType.players())
-                                    .executes(context -> {
-                                                var config = new ConfigManager();
-                                                var players = EntityArgumentType.getPlayers(context, "player");
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(CommandManager.literal(commandName)
+                // Register query command
+                .then(CommandManager.literal("query")
+                        // Add argument for a player entity
+                        .then(CommandManager.argument("player", EntityArgumentType.players())
+                                .executes(context -> {
+                                            var players = EntityArgumentType.getPlayers(context, "player");
 
-                                                players.forEach((player) -> {
-                                                    var playerName = player.getEntityName();
-                                                    // Get the stats for the player
-                                                    var playerDeathData = TimeLived.getDaysLivedForPlayer(player);
-                                                    if (playerDeathData != null) {
-                                                        // Get the current world time
-                                                        var currentTime = player.getServerWorld().getTimeOfDay();
-                                                        var timeLived = currentTime - playerDeathData.timePlayerLastDied;
-                                                        // Get the formatted time lived
-                                                        var formattedDays = TimeLived.getFormattedDDaysLived(timeLived);
-                                                        var formattedRecordDays = TimeLived.getFormattedDDaysLived(playerDeathData.longestTimeLived);
+                                            players.forEach((player) -> {
+                                                // Get the stats for the player
+                                                var playerDeathData = TimeLived.getDaysLivedForPlayer(player);
+                                                if (playerDeathData != null) {
+                                                    // Get the current world time
+                                                    var currentTime = player.getServerWorld().getTimeOfDay();
+                                                    var timeLived = currentTime - playerDeathData.timePlayerLastDied;
+                                                    // Get the formatted time lived
+                                                    var daysLived = TimeLived.getDaysLived(timeLived);
+                                                    var previousDaysLived = TimeLived.getDaysLived(playerDeathData.longestTimeLived);
 
-                                                        context.getSource().sendFeedback(() -> Text.literal(config.queryPlayerMessage.formatted(playerName, formattedDays, formattedRecordDays)).formatted(Formatting.GREEN), false);
-                                                    } else {
-                                                        context.getSource().sendFeedback(() -> Text.literal(config.statsNotFoundMessage.formatted(playerName)).formatted(Formatting.RED), false);
-                                                    }
-                                                });
-                                                return 1;
-                                            }
-                                    )
-                            )
-                    )
-            );
-        });
+                                                    context.getSource().sendFeedback(() -> {
+                                                        String msg = cfg.queryPlayerMessage;
+                                                        msg = TimeLived.replaceVariable(msg, daysLived, previousDaysLived, player);
+                                                        return Text.literal(msg).formatted(Formatting.GREEN);
+                                                    }, false);
+                                                } else {
+                                                    context.getSource().sendFeedback(() -> {
+                                                        String msg = cfg.statsNotFoundMessage;
+                                                        msg = TimeLived.replaceVariable(msg, 0, 0, player);
+                                                        return Text.literal(msg).formatted(Formatting.RED);
+                                                    }, false);
+                                                }
+                                            });
+                                            return 1;
+                                        }
+                                )
+                        )
+                )
+        ));
     }
 }

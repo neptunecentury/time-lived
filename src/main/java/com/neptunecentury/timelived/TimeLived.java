@@ -14,14 +14,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.DecimalFormat;
-import java.util.HashMap;
-import java.util.UUID;
+import java.util.*;
 
 public class TimeLived implements ModInitializer {
     public static final String MOD_ID = "time-lived";
     public static final HashMap<UUID, PlayerDeathData> playerDeathDataHash = new HashMap<>();
-    //private static final String keyId = "time_since_last_death";
-    //public static final Identifier TIME_SINCE_LAST_DEATH = new Identifier("time-lived", keyId);
+
     public static MinecraftServer _server;
     public static final String TIME_LIVED_PLAYER_DEATH_DATA = "TimeLivedPlayerDeathData";
     public static final String TIME_PLAYER_LAST_DIED = "TimePlayerLastDied";
@@ -30,11 +28,15 @@ public class TimeLived implements ModInitializer {
     // Logger
     public static final Logger logger = LoggerFactory.getLogger(MOD_ID);
 
+    private static final Config _cfg = new ConfigManager<Config>(MOD_ID, logger).load(Config.class);
+    private static final String DAYS_LIVED_VARIABLE = "{daysLived}";
+    private static final String PREVIOUS_DAYS_LIVED_VARIABLE = "{previousDaysLived}";
+    private static final String PLAYER_NAME_VARIABLE = "{playerName}";
+
     @Override
     public void onInitialize() {
-
         // Register the commands
-        Commander.registerCommands("timelived");
+        Commander.registerCommands("timelived", _cfg);
 
         // Register event when player joins server
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
@@ -73,10 +75,6 @@ public class TimeLived implements ModInitializer {
             }
         }));
 
-        //ServerPlayerEvents.COPY_FROM.register(((oldPlayer, newPlayer, alive) -> {
-        //}));
-
-
         // Register when player respawns
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             // If the player is alive, then do nothing. This can happen if the player respawns, but
@@ -101,38 +99,88 @@ public class TimeLived implements ModInitializer {
 
             // Calculate how long the player lived.
             var timeLived = playerDeathData.timePlayerJustDied - playerDeathData.timePlayerLastDied;
+            // Get how many days the player lived
+            var daysLived = getDaysLived(timeLived);
+            var previousDaysLived = getDaysLived(playerDeathData.longestTimeLived);
 
             // Since the world is still ticking while the player is dead, update the last time of death
             // after the player has respawned.
             playerDeathData.timePlayerLastDied = world.getTimeOfDay();
-            // Get instance of config
-            var config = new ConfigManager();
-            // Set some custom messages.
-            MutableText msg = getTimeLivedMessage(timeLived, config);
 
-            // If days are negative... then the player must have traveled back in time!
-            if (timeLived < 0) {
-                msg.append(" ");
-                msg.append(Text.literal(config.timeTravelMessage));
-            }
-
-            // Output the chat message to the player
-            newPlayer.sendMessage(msg.formatted(Formatting.GREEN));
-
-            if (timeLived > playerDeathData.longestTimeLived) {
-                // Get old record
-                var previousDaysLived = getDaysLived(playerDeathData.longestTimeLived);
-                var formattedPreviousDaysLived = formatDaysLived(previousDaysLived);
-
-                // Set new record.
-                playerDeathData.longestTimeLived = timeLived;
+            // Get message to send to the player
+            var msg = getTimeLivedMessage(_cfg.timeLivedMessages, daysLived, previousDaysLived, newPlayer);
+            if (msg != null) {
+                // If days are negative... then the player must have traveled back in time!
+                if (_cfg.timeTravelMessage != null && daysLived < 0) {
+                    msg.append(" ");
+                    var timeTravelMsg = _cfg.timeTravelMessage;
+                    timeTravelMsg = replaceVariable(timeTravelMsg, daysLived, previousDaysLived, newPlayer);
+                    msg.append(Text.literal(timeTravelMsg));
+                }
 
                 // Output the chat message to the player
-                var newRecordMsg = Text.literal(config.newRecordMessage.formatted(formattedPreviousDaysLived));
-                newPlayer.sendMessage(newRecordMsg.formatted(Formatting.AQUA));
+                newPlayer.sendMessage(msg.formatted(Formatting.GREEN));
+            }
+
+            // Check if the player reached a new record and send a message if they did.
+            if (didPlayerBeatPersonalRecord(timeLived, playerDeathData)) {
+                sendNewRecordMessage(newPlayer, daysLived, previousDaysLived);
             }
 
         });
+    }
+
+    /**
+     * Checks if the player beat their record days lived
+     *
+     * @param timeLived       The ticks the player has lived for
+     * @param playerDeathData The player death data
+     * @return True if the player exceeded their last record
+     */
+    public boolean didPlayerBeatPersonalRecord(long timeLived, PlayerDeathData playerDeathData) {
+        var beatRecord = false;
+        // Check if we should display new record message
+        if (timeLived > playerDeathData.longestTimeLived) {
+            // Set new record.
+            playerDeathData.longestTimeLived = timeLived;
+            beatRecord = true;
+        }
+
+        return beatRecord;
+    }
+
+    /**
+     * Sends a message to the player that they have beat their record. Also sends a message to other
+     * players if configured.
+     *
+     * @param newPlayer         The player who died after respawn
+     * @param daysLived         The number of days lived
+     * @param previousDaysLived The previous record days lived
+     */
+    private void sendNewRecordMessage(ServerPlayerEntity newPlayer, double daysLived, double previousDaysLived) {
+        // Output the chat message to the player
+        if (_cfg.newRecordMessage != null) {
+            var msg = replaceVariable(_cfg.newRecordMessage, daysLived, previousDaysLived, newPlayer);
+            newPlayer.sendMessage(Text.literal(msg).formatted(Formatting.AQUA));
+        }
+
+        // Check if we should send message to others
+        if (_cfg.enableMessagesToOthers && _cfg.newRecordMessageToOthers != null) {
+            // Get the players on the server
+            var server = newPlayer.getServer();
+            if (server != null) {
+                var playerManager = server.getPlayerManager();
+                var players = playerManager.getPlayerList();
+                // Loop through each player and send a message, alerting everyone of the dead player's death.
+                for (var player : players) {
+                    if (player != newPlayer) {
+                        // Send player a message
+                        var msg = replaceVariable(_cfg.newRecordMessageToOthers, daysLived, previousDaysLived, newPlayer);
+                        player.sendMessage(Text.literal(msg).formatted(Formatting.AQUA));
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -157,39 +205,39 @@ public class TimeLived implements ModInitializer {
     }
 
     /**
-     * Formats the time lived to days
-     *
-     * @param timeLived The number of ticks the player lived
-     * @return The formatted days the player lived
-     */
-    public static String getFormattedDDaysLived(long timeLived) {
-        var daysLived = getDaysLived(timeLived);
-        return formatDaysLived(daysLived);
-    }
-
-    /**
      * Gets a message for the user
      *
-     * @param timeLived The number of ticks the player lived
-     * @param config    An instance if the config manager
+     * @param messages          An array list of messages to choose from
+     * @param daysLived         The number of days the player lived
+     * @param previousDaysLived The previous number of days the player lived
+     * @param player            The player entity
      * @return Custom message
      */
-    private static @NotNull MutableText getTimeLivedMessage(long timeLived, ConfigManager config) {
-        MutableText msg;
-        var daysLived = getDaysLived(timeLived);
-        var formattedDays = formatDaysLived(daysLived);
-        if (daysLived > 100) {
-            msg = Text.literal(config.wowMessage.formatted(formattedDays));
-        } else if (daysLived > 1) {
-            msg = Text.literal(config.congratsMessage.formatted(formattedDays));
-        } else if (daysLived > 0.5) {
-            msg = Text.literal(config.tryAgainMessage.formatted(formattedDays));
-        } else if (daysLived > 0.1) {
-            msg = Text.literal(config.tryHarderMessage.formatted(formattedDays));
-        } else {
-            msg = Text.literal(config.maybeNextTimeMessage.formatted(formattedDays));
+    public static MutableText getTimeLivedMessage(@NotNull ArrayList<TimeLivedMessage> messages, double daysLived, double previousDaysLived, ServerPlayerEntity player) {
+        String msg = null;
+        // Check the days lived and get the appropriate message
+        for (TimeLivedMessage tlm : messages) {
+            // Check if message starting with the largest first.
+            if (daysLived >= tlm.minDaysLived) {
+                msg = tlm.message;
+                break;
+            }
         }
-        return msg;
+
+        // Choose first message if we didn't find a valid one.
+        if (msg == null && !messages.isEmpty()) {
+            // Since messages are sorted from highest to lowest days, pick the last element as default
+            msg = messages.get(messages.size() - 1).message;
+        }
+
+        if (msg != null) {
+            // Replace variables with data
+            msg = replaceVariable(msg, daysLived, previousDaysLived, player);
+
+            return Text.literal(msg);
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -200,5 +248,32 @@ public class TimeLived implements ModInitializer {
      */
     public static PlayerDeathData getDaysLivedForPlayer(ServerPlayerEntity player) {
         return TimeLived.playerDeathDataHash.get(player.getUuid());
+    }
+
+    /**
+     * Replaces the variable with formatted data
+     *
+     * @param msg               The message to search
+     * @param daysLived         The number of days the player lived
+     * @param previousDaysLived The number of previous days the player lived
+     * @param player            The player
+     * @return The formatted string
+     */
+    public static String replaceVariable(@NotNull String msg, double daysLived, double previousDaysLived, ServerPlayerEntity player) {
+        var newMsg = msg;
+        // Get formatted days lived and previous days lived (record)
+        var formattedDays = formatDaysLived(daysLived);
+        var formattedPreviousDays = formatDaysLived(previousDaysLived);
+        // Replace variables with data
+        newMsg = newMsg.replace(DAYS_LIVED_VARIABLE, formattedDays);
+        newMsg = newMsg.replace(PREVIOUS_DAYS_LIVED_VARIABLE, formattedPreviousDays);
+        newMsg = newMsg.replace(PLAYER_NAME_VARIABLE, player.getEntityName());
+
+        return newMsg;
+    }
+
+
+    public static Config get_cfg() {
+        return _cfg;
     }
 }

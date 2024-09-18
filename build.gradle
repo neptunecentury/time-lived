@@ -27,6 +27,11 @@ dependencies {
 
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // GSON
+    //implementation "com.google.code.gson:gson:2.11.0"
+    // The following line makes sure the GSON dependency ends up in the jar file
+    //include "com.google.code.gson:gson:2.11.0"
 }
 
 processResources {

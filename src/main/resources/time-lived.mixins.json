@@ -4,7 +4,7 @@
   "package": "com.neptunecentury.timelived.mixin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
-    "PlayerMixin"
+    "ServerPlayerEntityMixin"
   ],
   "client": [
   ],
