@@ -36,13 +36,14 @@ public class Commander {
                                                     var previousDaysLived = TimeLived.getDaysLived(playerDeathData.longestTimeLived);
 
                                                     context.getSource().sendFeedback(() -> {
-                                                        String msg = cfg.queryPlayerMessage;
+                                                        var msg = cfg.queryPlayerMessage;
                                                         msg = TimeLived.replaceVariable(msg, daysLived, previousDaysLived, player);
                                                         return Text.literal(msg).formatted(Formatting.GREEN);
                                                     }, false);
                                                 } else {
+                                                    // Could not find the stats for the player
                                                     context.getSource().sendFeedback(() -> {
-                                                        String msg = cfg.statsNotFoundMessage;
+                                                        var msg = cfg.statsNotFoundMessage;
                                                         msg = TimeLived.replaceVariable(msg, 0, 0, player);
                                                         return Text.literal(msg).formatted(Formatting.RED);
                                                     }, false);

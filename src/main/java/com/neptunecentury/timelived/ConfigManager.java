@@ -42,9 +42,12 @@ public class ConfigManager<T extends IConfig> {
             // Locate the file in the config folder and return it as a File object
             var configFile = FabricLoader.getInstance().getConfigDir().resolve(_name + ".json");
             // Load the file
-            var jsonString = Files.newBufferedReader(configFile);
+            var reader = Files.newBufferedReader(configFile);
             // Deserialize
-            _cfg = gson.fromJson(jsonString, clazz);
+            _cfg = gson.fromJson(reader, clazz);
+            // Close the reader
+            reader.close();
+
             // Set defaults
             if (_cfg.setDefaults()) {
                 save();
