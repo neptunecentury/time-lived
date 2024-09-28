@@ -142,14 +142,15 @@ public class TimeLived implements ModInitializer {
      */
     public boolean didPlayerBeatPersonalRecord(long timeLived, PlayerDeathData playerDeathData) {
         var beatRecord = false;
+        var lastRecord = playerDeathData.longestTimeLived;
         // Check if we should display new record message
-        if (timeLived > playerDeathData.longestTimeLived) {
+        if (timeLived > lastRecord) {
             // Set new record.
             playerDeathData.longestTimeLived = timeLived;
             beatRecord = true;
         }
 
-        return beatRecord;
+        return beatRecord && lastRecord > 0;
     }
 
     /**
@@ -244,16 +245,6 @@ public class TimeLived implements ModInitializer {
     }
 
     /**
-     * Gets the death data for a player
-     *
-     * @param player The player to get the death data for
-     * @return The player death data
-     */
-    public static PlayerDeathData getDaysLivedForPlayer(ServerPlayerEntity player) {
-        return TimeLived.playerDeathDataHash.get(player.getUuid());
-    }
-
-    /**
      * Replaces the variable with formatted data
      *
      * @param msg               The message to search
@@ -275,8 +266,64 @@ public class TimeLived implements ModInitializer {
         return newMsg;
     }
 
-
+    /**
+     * Gets the current config
+     * @return A config object
+     */
     public static Config get_cfg() {
         return _cfg;
+    }
+
+    /**
+     * Gets the death data for a player
+     *
+     * @param player The player to get the death data for
+     * @return The player death data
+     */
+    public static PlayerDeathData getPlayerDeathData(ServerPlayerEntity player) {
+        return playerDeathDataHash.getOrDefault(player.getUuid(), null);
+    }
+
+    /**
+     * Gets the time the player is/was alive for
+     * @param player The player
+     * @param playerDeathData Player death data
+     * @return The time the player is/was alive for
+     */
+    public static long getTimeAlive(ServerPlayerEntity player, PlayerDeathData playerDeathData) {
+        if (playerDeathData == null) {
+            return 0;
+        }
+
+        if (player.isAlive()) {
+            // Get the current world
+            var world = player.getServerWorld();
+            if (world == null) {
+                return 0;
+            }
+            return world.getTimeOfDay() - playerDeathData.timePlayerLastDied;
+        } else {
+            // Player is still dead, so the calculation is when they last died - the time they just died.
+            return playerDeathData.timePlayerJustDied - playerDeathData.timePlayerLastDied;
+        }
+    }
+
+    /**
+     * Gets the max time the player has been alive for.
+     * @param player The player
+     * @return The max time the player has lived
+     */
+    public static long getMaxTimeLived(ServerPlayerEntity player) {
+        // Get the player death data for a player and check their longest time lived.
+        // If they are still alive, and they lived longer than their previous record,
+        // return their current time lived.
+        var playerDeathData = getPlayerDeathData(player);
+        if (playerDeathData == null) {
+            return 0;
+        }
+
+        // Use world time if the player is alive, or the time they just died if they are still dead
+        var timeAlive = getTimeAlive(player, playerDeathData);
+        return Math.max(playerDeathData.longestTimeLived, timeAlive);
     }
 }
