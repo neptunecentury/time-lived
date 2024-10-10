@@ -54,7 +54,6 @@ public class ConfigManager<T extends IConfig> {
             }
 
         } catch (NoSuchFileException ex) {
-            _logger.warn("[{}] Could not load config: {}: Using default values.", _name, ex.getMessage());
             // Create defaults
             try {
                 _cfg = clazz.getDeclaredConstructor().newInstance();
@@ -100,7 +99,7 @@ public class ConfigManager<T extends IConfig> {
             writer.close();
 
         } catch (IOException e) {
-            _logger.warn("[{}] Could not save config: {}", _name, e.getMessage());
+            _logger.error("[{}] Could not save config: {}", _name, e.getMessage());
 
         }
     }
