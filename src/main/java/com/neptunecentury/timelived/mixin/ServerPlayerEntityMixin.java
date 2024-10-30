@@ -72,7 +72,6 @@ public class ServerPlayerEntityMixin {
 
     @Inject(at = @At("HEAD"), method = "readCustomDataFromNbt")
     private void mixinReadCustomDataFromNbt(NbtCompound nbt, CallbackInfo ci) {
-        TimeLived.logger.info("readCustomDataFromNbt");
         ServerPlayerEntity thisObject = (ServerPlayerEntity) (Object) this;
         // Get the time the player last died from the nbt tag
         var playerDeathNbtData = nbt.getCompound(TimeLived.TIME_LIVED_PLAYER_DEATH_DATA);
