@@ -23,6 +23,7 @@ public class Config implements IConfig {
      */
     public String newRecordMessageToOthers = "All right! {playerName} surpassed their previous record of {previousDaysLived} day(s)!";
     public String queryPlayerMessage = "{playerName} has lived for {daysLived} day(s). Previous record is {previousDaysLived} day(s).";
+    public String queryWorldRecordMessage = "The current record holder for longest time lived is {playerName}, surviving a total of {daysLived} day(s).";
     public String statsNotFoundMessage = "Statistics not found for {playerName}.";
     public String timeTravelMessage = "Wait... did you travel back in time?";
     public boolean enableMessagesToOthers = true;
