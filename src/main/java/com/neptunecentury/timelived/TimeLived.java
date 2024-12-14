@@ -228,7 +228,7 @@ public class TimeLived implements ModInitializer {
         // Choose first message if we didn't find a valid one.
         if (msg == null && !messages.isEmpty()) {
             // Since messages are sorted from highest to lowest days, pick the last element as default
-            msg = messages.get(messages.size() - 1).message;
+            msg = messages.getLast().message;
         }
 
         if (msg != null) {
@@ -258,7 +258,11 @@ public class TimeLived implements ModInitializer {
         // Replace variables with data
         newMsg = newMsg.replace(DAYS_LIVED_VARIABLE, formattedDays);
         newMsg = newMsg.replace(PREVIOUS_DAYS_LIVED_VARIABLE, formattedPreviousDays);
-        newMsg = newMsg.replace(PLAYER_NAME_VARIABLE, player.getDisplayName().getString());
+
+        // Get the display name of the player
+        var playerName = player.getDisplayName();
+
+        newMsg = newMsg.replace(PLAYER_NAME_VARIABLE, (playerName != null ? playerName.getString() : ""));
 
         return newMsg;
     }
