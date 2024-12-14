@@ -258,7 +258,11 @@ public class TimeLived implements ModInitializer {
         // Replace variables with data
         newMsg = newMsg.replace(DAYS_LIVED_VARIABLE, formattedDays);
         newMsg = newMsg.replace(PREVIOUS_DAYS_LIVED_VARIABLE, formattedPreviousDays);
-        newMsg = newMsg.replace(PLAYER_NAME_VARIABLE, player.getDisplayName().getString());
+
+        // Get the player display name
+        var playerName = player.getDisplayName();
+
+        newMsg = newMsg.replace(PLAYER_NAME_VARIABLE, (playerName != null ? playerName.getString() : ""));
 
         return newMsg;
     }
