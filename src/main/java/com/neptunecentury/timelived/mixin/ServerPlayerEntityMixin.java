@@ -76,9 +76,15 @@ public class ServerPlayerEntityMixin {
         // Get the time the player last died from the nbt tag
         var playerDeathNbtData = nbt.getCompound(TimeLived.TIME_LIVED_PLAYER_DEATH_DATA);
         var playerDeathData = new PlayerDeathData();
-        playerDeathData.timePlayerLastDied = playerDeathNbtData.getLong(TimeLived.TIME_PLAYER_LAST_DIED);
-        playerDeathData.timePlayerJustDied = playerDeathNbtData.getLong(TimeLived.TIME_PLAYER_JUST_DIED);
-        playerDeathData.longestTimeLived = playerDeathNbtData.getLong(TimeLived.LONGEST_TIME_LIVED);
+
+        if (playerDeathNbtData.isPresent()){
+            var nbtData = playerDeathNbtData.get();
+            // Read data
+            playerDeathData.timePlayerLastDied = nbtData.getLong(TimeLived.TIME_PLAYER_LAST_DIED).get();
+            playerDeathData.timePlayerJustDied = nbtData.getLong(TimeLived.TIME_PLAYER_JUST_DIED).get();
+            playerDeathData.longestTimeLived = nbtData.getLong(TimeLived.LONGEST_TIME_LIVED).get();
+        }
+
         // Update last time player died in the hashmap
         TimeLived.playerDeathDataHash.put(thisObject.getUuid(), playerDeathData);
     }
