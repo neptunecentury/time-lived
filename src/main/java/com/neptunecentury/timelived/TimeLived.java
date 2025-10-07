@@ -92,7 +92,7 @@ public class TimeLived implements ModInitializer {
             }
 
             // Get the current world
-            var world = oldPlayer.getServerWorld();
+            var world = _server.getOverworld();
             if (world == null) {
                 return;
             }
@@ -168,9 +168,8 @@ public class TimeLived implements ModInitializer {
         // Check if we should send message to others
         if (_cfg.enableMessagesToOthers && _cfg.newRecordMessageToOthers != null) {
             // Get the players on the server
-            var server = newPlayer.getServer();
-            if (server != null) {
-                var playerManager = server.getPlayerManager();
+            if (_server != null) {
+                var playerManager = _server.getPlayerManager();
                 var players = playerManager.getPlayerList();
                 // Loop through each player and send a message, alerting everyone of the dead player's death.
                 for (var player : players) {
@@ -298,7 +297,7 @@ public class TimeLived implements ModInitializer {
 
         if (player.isAlive()) {
             // Get the current world
-            var world = player.getServerWorld();
+            var world = _server.getOverworld();
             if (world == null) {
                 return 0;
             }

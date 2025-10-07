@@ -5,6 +5,8 @@ import com.neptunecentury.timelived.TimeLived;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 import net.minecraft.util.Formatting;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -70,27 +72,29 @@ public class ServerPlayerEntityMixin {
 
     }
 
-    @Inject(at = @At("HEAD"), method = "readCustomDataFromNbt")
-    private void mixinReadCustomDataFromNbt(NbtCompound nbt, CallbackInfo ci) {
+    @Inject(at = @At("HEAD"), method = "readCustomData")
+    private void mixinReadCustomDataFromNbt(ReadView view, CallbackInfo ci) {
+
         ServerPlayerEntity thisObject = (ServerPlayerEntity) (Object) this;
         // Get the time the player last died from the nbt tag
-        var playerDeathNbtData = nbt.getCompound(TimeLived.TIME_LIVED_PLAYER_DEATH_DATA);
+        //var playerDeathNbtData = nbt.getCompound(TimeLived.TIME_LIVED_PLAYER_DEATH_DATA);
+        var playerDeathNbtData = view.getOptionalReadView(TimeLived.TIME_LIVED_PLAYER_DEATH_DATA);
         var playerDeathData = new PlayerDeathData();
 
         if (playerDeathNbtData.isPresent()){
             var nbtData = playerDeathNbtData.get();
             // Read data
-            playerDeathData.timePlayerLastDied = nbtData.getLong(TimeLived.TIME_PLAYER_LAST_DIED).get();
-            playerDeathData.timePlayerJustDied = nbtData.getLong(TimeLived.TIME_PLAYER_JUST_DIED).get();
-            playerDeathData.longestTimeLived = nbtData.getLong(TimeLived.LONGEST_TIME_LIVED).get();
+            playerDeathData.timePlayerLastDied = nbtData.getLong(TimeLived.TIME_PLAYER_LAST_DIED, 0);
+            playerDeathData.timePlayerJustDied = nbtData.getLong(TimeLived.TIME_PLAYER_JUST_DIED, 0);
+            playerDeathData.longestTimeLived = nbtData.getLong(TimeLived.LONGEST_TIME_LIVED, 0);
         }
 
         // Update last time player died in the hashmap
         TimeLived.playerDeathDataHash.put(thisObject.getUuid(), playerDeathData);
     }
 
-    @Inject(at = @At("HEAD"), method = "writeCustomDataToNbt")
-    private void mixinWriteCustomDataToNbt(NbtCompound nbt, CallbackInfo ci) {
+    @Inject(at = @At("HEAD"), method = "writeCustomData")
+    private void mixinWriteCustomDataToNbt(WriteView view, CallbackInfo ci) {
         ServerPlayerEntity thisObject = (ServerPlayerEntity) (Object) this;
         // Get the time the player last died from the hashmap
         var playerDeathData = TimeLived.playerDeathDataHash.getOrDefault(thisObject.getUuid(), null);
@@ -104,7 +108,7 @@ public class ServerPlayerEntityMixin {
         playerDeathNbtData.putLong(TimeLived.TIME_PLAYER_JUST_DIED, playerDeathData.timePlayerJustDied);
         playerDeathNbtData.putLong(TimeLived.LONGEST_TIME_LIVED, playerDeathData.longestTimeLived);
         // Put the player death data nbt compound into the custom data nbt compound.
-        nbt.put(TimeLived.TIME_LIVED_PLAYER_DEATH_DATA, playerDeathNbtData);
+        view.put(TimeLived.TIME_LIVED_PLAYER_DEATH_DATA, NbtCompound.CODEC, playerDeathNbtData);
 
     }
 
