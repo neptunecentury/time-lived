@@ -5,10 +5,10 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +45,7 @@ public class TimeLived implements ModInitializer {
             _server = server;
 
             // Get the player death data from the hash
-            var playerDeathData = TimeLived.playerDeathDataHash.getOrDefault(handler.player.getUuid(), null);
+            var playerDeathData = TimeLived.playerDeathDataHash.getOrDefault(handler.player.getUUID(), null);
             // Check if the player death data needs to be cleared from the hash. This may be needed
             // if the player joins a new world, and no nbt data is loaded into the hash, resulting
             // in left over data from the previous world, which we don't want.
@@ -58,9 +58,9 @@ public class TimeLived implements ModInitializer {
                 playerDeathData = new PlayerDeathData();
                 // Get the time of day the player joined if there is no death data because this
                 // could be the first time the player joined.
-                playerDeathData.timePlayerLastDied = server.getOverworld().getTimeOfDay();
+                playerDeathData.timePlayerLastDied = server.overworld().getOverworldClockTime();
                 // Create new instance and save it in the hashmap
-                TimeLived.playerDeathDataHash.put(handler.player.getUuid(), playerDeathData);
+                TimeLived.playerDeathDataHash.put(handler.player.getUUID(), playerDeathData);
             }
         });
 
@@ -69,7 +69,7 @@ public class TimeLived implements ModInitializer {
             // if the player loads another world and the nbt data is read into the hash table,
             // OR if the player joins a new world and the nbt data is not cleared and the
             // needsHashDataCleared flag is set.
-            var playerDeathData = playerDeathDataHash.get(handler.player.getUuid());
+            var playerDeathData = playerDeathDataHash.get(handler.player.getUUID());
             if (playerDeathData != null) {
                 playerDeathData.needsHashDataCleared = true;
             }
@@ -86,13 +86,13 @@ public class TimeLived implements ModInitializer {
             // Once the player respawns, calculate how long the player live for by taking the last
             // time of death, how long they were dead for, and the current world time.
             // First, get the player death data from the hashmap if it exists
-            var playerDeathData = TimeLived.playerDeathDataHash.get(oldPlayer.getUuid());
+            var playerDeathData = TimeLived.playerDeathDataHash.get(oldPlayer.getUUID());
             if (playerDeathData == null) {
                 return;
             }
 
             // Get the current world
-            var world = _server.getOverworld();
+            var world = _server.overworld();
             if (world == null) {
                 return;
             }
@@ -105,7 +105,7 @@ public class TimeLived implements ModInitializer {
 
             // Since the world is still ticking while the player is dead, update the last time of death
             // after the player has respawned.
-            playerDeathData.timePlayerLastDied = world.getTimeOfDay();
+            playerDeathData.timePlayerLastDied = world.getOverworldClockTime();
 
             // Get message to send to the player
             var msg = getTimeLivedMessage(_cfg.timeLivedMessages, daysLived, previousDaysLived, newPlayer);
@@ -115,11 +115,11 @@ public class TimeLived implements ModInitializer {
                     msg.append(" ");
                     var timeTravelMsg = _cfg.timeTravelMessage;
                     timeTravelMsg = replaceVariable(timeTravelMsg, daysLived, previousDaysLived, newPlayer);
-                    msg.append(Text.literal(timeTravelMsg));
+                    msg.append(Component.literal(timeTravelMsg));
                 }
 
                 // Output the chat message to the player
-                newPlayer.sendMessage(msg.formatted(Formatting.GREEN));
+                newPlayer.sendSystemMessage(msg.withStyle(ChatFormatting.GREEN));
             }
 
             // Check if the player reached a new record and send a message if they did.
@@ -158,25 +158,25 @@ public class TimeLived implements ModInitializer {
      * @param daysLived         The number of days lived
      * @param previousDaysLived The previous record days lived
      */
-    private void sendNewRecordMessage(ServerPlayerEntity newPlayer, double daysLived, double previousDaysLived) {
+    private void sendNewRecordMessage(ServerPlayer newPlayer, double daysLived, double previousDaysLived) {
         // Output the chat message to the player
         if (_cfg.newRecordMessage != null) {
             var msg = replaceVariable(_cfg.newRecordMessage, daysLived, previousDaysLived, newPlayer);
-            newPlayer.sendMessage(Text.literal(msg).formatted(Formatting.AQUA));
+            newPlayer.sendSystemMessage(Component.literal(msg).withStyle(ChatFormatting.AQUA));
         }
 
         // Check if we should send message to others
         if (_cfg.enableMessagesToOthers && _cfg.newRecordMessageToOthers != null) {
             // Get the players on the server
             if (_server != null) {
-                var playerManager = _server.getPlayerManager();
-                var players = playerManager.getPlayerList();
+                var playerManager = _server.getPlayerList();
+                var players = playerManager.getPlayers();
                 // Loop through each player and send a message, alerting everyone of the dead player's death.
                 for (var player : players) {
                     if (player != newPlayer) {
                         // Send player a message
                         var msg = replaceVariable(_cfg.newRecordMessageToOthers, daysLived, previousDaysLived, newPlayer);
-                        player.sendMessage(Text.literal(msg).formatted(Formatting.AQUA));
+                        player.sendSystemMessage(Component.literal(msg).withStyle(ChatFormatting.AQUA));
                     }
                 }
             }
@@ -213,7 +213,7 @@ public class TimeLived implements ModInitializer {
      * @param player            The player entity
      * @return Custom message
      */
-    public static MutableText getTimeLivedMessage(@NotNull ArrayList<TimeLivedMessage> messages, double daysLived, double previousDaysLived, ServerPlayerEntity player) {
+    public static MutableComponent getTimeLivedMessage(@NotNull ArrayList<TimeLivedMessage> messages, double daysLived, double previousDaysLived, ServerPlayer player) {
         String msg = null;
         // Check the days lived and get the appropriate message
         for (TimeLivedMessage tlm : messages) {
@@ -234,7 +234,7 @@ public class TimeLived implements ModInitializer {
             // Replace variables with data
             msg = replaceVariable(msg, daysLived, previousDaysLived, player);
 
-            return Text.literal(msg);
+            return Component.literal(msg);
         } else {
             return null;
         }
@@ -249,7 +249,7 @@ public class TimeLived implements ModInitializer {
      * @param player            The player
      * @return The formatted string
      */
-    public static String replaceVariable(@NotNull String msg, double daysLived, double previousDaysLived, ServerPlayerEntity player) {
+    public static String replaceVariable(@NotNull String msg, double daysLived, double previousDaysLived, ServerPlayer player) {
         var newMsg = msg;
         // Get formatted days lived and previous days lived (record)
         var formattedDays = formatDaysLived(daysLived);
@@ -280,8 +280,8 @@ public class TimeLived implements ModInitializer {
      * @param player The player to get the death data for
      * @return The player death data
      */
-    public static PlayerDeathData getPlayerDeathData(ServerPlayerEntity player) {
-        return playerDeathDataHash.getOrDefault(player.getUuid(), null);
+    public static PlayerDeathData getPlayerDeathData(ServerPlayer player) {
+        return playerDeathDataHash.getOrDefault(player.getUUID(), null);
     }
 
     /**
@@ -290,18 +290,18 @@ public class TimeLived implements ModInitializer {
      * @param playerDeathData Player death data
      * @return The time the player is/was alive for
      */
-    public static long getTimeAlive(ServerPlayerEntity player, PlayerDeathData playerDeathData) {
+    public static long getTimeAlive(ServerPlayer player, PlayerDeathData playerDeathData) {
         if (playerDeathData == null) {
             return 0;
         }
 
         if (player.isAlive()) {
             // Get the current world
-            var world = _server.getOverworld();
+            var world = _server.overworld();
             if (world == null) {
                 return 0;
             }
-            return world.getTimeOfDay() - playerDeathData.timePlayerLastDied;
+            return world.getOverworldClockTime() - playerDeathData.timePlayerLastDied;
         } else {
             // Player is still dead, so the calculation is when they last died - the time they just died.
             return playerDeathData.timePlayerJustDied - playerDeathData.timePlayerLastDied;
@@ -313,7 +313,7 @@ public class TimeLived implements ModInitializer {
      * @param player The player
      * @return The max time the player has lived
      */
-    public static long getMaxTimeLived(ServerPlayerEntity player) {
+    public static long getMaxTimeLived(ServerPlayer player) {
         // Get the player death data for a player and check their longest time lived.
         // If they are still alive, and they lived longer than their previous record,
         // return their current time lived.
