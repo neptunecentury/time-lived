@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class TimeLived implements ModInitializer {
     public static final String MOD_ID = "time-lived";
@@ -93,9 +94,6 @@ public class TimeLived implements ModInitializer {
 
             // Get the current world
             var world = _server.overworld();
-            if (world == null) {
-                return;
-            }
 
             // Calculate how long the player lived.
             var timeLived = playerDeathData.timePlayerJustDied - playerDeathData.timePlayerLastDied;
@@ -215,11 +213,17 @@ public class TimeLived implements ModInitializer {
      */
     public static MutableComponent getTimeLivedMessage(@NotNull ArrayList<TimeLivedMessage> messages, double daysLived, double previousDaysLived, ServerPlayer player) {
         String msg = null;
+
         // Check the days lived and get the appropriate message
-        for (TimeLivedMessage tlm : messages) {
+        for (var tlm : messages) {
             // Check if message starting with the largest first.
             if (daysLived >= tlm.minDaysLived) {
-                msg = tlm.message;
+                // Iterate the messages and grab all the ones with the same min days
+                var messageBank = buildMessageBank(messages, tlm.minDaysLived);
+                // Grab a random message from the array in the hash map for that range
+                var randomMessage = pickRandom(messageBank);
+                // The random message will be the one to use
+                msg = randomMessage.getRandomMessage();
                 break;
             }
         }
@@ -227,7 +231,12 @@ public class TimeLived implements ModInitializer {
         // Choose first message if we didn't find a valid one.
         if (msg == null && !messages.isEmpty()) {
             // Since messages are sorted from highest to lowest days, pick the last element as default
-            msg = messages.getLast().message;
+            var tlm = messages.getLast();
+            // Iterate the messages and grab all the ones with the same min days
+            var messageBank = buildMessageBank(messages, tlm.minDaysLived);
+            // And get a random message from the set.
+            var randomMessage = pickRandom(messageBank);
+            msg = randomMessage.getRandomMessage();
         }
 
         if (msg != null) {
@@ -238,6 +247,39 @@ public class TimeLived implements ModInitializer {
         } else {
             return null;
         }
+    }
+
+    /**
+     * Builds a list of messages with the same min days lived value
+     *
+     * @param messages     List of all messages
+     * @param minDaysLived Min days lived
+     * @return List of all messages with same min days lived
+     */
+    private static ArrayList<TimeLivedMessage> buildMessageBank(ArrayList<TimeLivedMessage> messages, double minDaysLived) {
+        // Create an array list to store messages of the same min days
+        var messageBank = new ArrayList<TimeLivedMessage>();
+
+        // Iterate the messages and grab all the ones with the same min days
+        for (var m : messages) {
+            if (m.minDaysLived == minDaysLived) {
+                messageBank.add(m);
+            }
+        }
+
+        return messageBank;
+    }
+
+    /**
+     * Picks a random message from a list
+     *
+     * @param messages An array of messages
+     * @return A random message from the array
+     */
+    private static TimeLivedMessage pickRandom(ArrayList<TimeLivedMessage> messages) {
+        return messages.get(
+                ThreadLocalRandom.current().nextInt(messages.size())
+        );
     }
 
     /**
@@ -261,13 +303,14 @@ public class TimeLived implements ModInitializer {
         // Get the display name of the player
         var playerName = player.getDisplayName();
 
-        newMsg = newMsg.replace(PLAYER_NAME_VARIABLE, (playerName != null ? playerName.getString() : ""));
+        newMsg = newMsg.replace(PLAYER_NAME_VARIABLE, playerName.getString());
 
         return newMsg;
     }
 
     /**
      * Gets the current config
+     *
      * @return A config object
      */
     public static Config get_cfg() {
@@ -286,7 +329,8 @@ public class TimeLived implements ModInitializer {
 
     /**
      * Gets the time the player is/was alive for
-     * @param player The player
+     *
+     * @param player          The player
      * @param playerDeathData Player death data
      * @return The time the player is/was alive for
      */
@@ -298,9 +342,6 @@ public class TimeLived implements ModInitializer {
         if (player.isAlive()) {
             // Get the current world
             var world = _server.overworld();
-            if (world == null) {
-                return 0;
-            }
             return world.getOverworldClockTime() - playerDeathData.timePlayerLastDied;
         } else {
             // Player is still dead, so the calculation is when they last died - the time they just died.
@@ -310,6 +351,7 @@ public class TimeLived implements ModInitializer {
 
     /**
      * Gets the max time the player has been alive for.
+     *
      * @param player The player
      * @return The max time the player has lived
      */

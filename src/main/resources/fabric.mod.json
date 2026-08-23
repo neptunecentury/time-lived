@@ -3,7 +3,7 @@
   "id": "time-lived",
   "version": "${version}",
   "name": "Time Lived",
-  "description": "",
+  "description": "A mod that tracks how long a player lived before each death",
   "authors": [
     "neptunecentury"
   ],
